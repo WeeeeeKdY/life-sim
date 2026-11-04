@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>layout-check</title>
+<style>
+  body { background:#111; color:#ddd; font: 13px/1.7 monospace; margin:0; padding:16px; }
+  iframe { position:fixed; left:-3000px; top:0; border:0; }
+</style>
+</head>
+<body>
+<pre id="report">running…</pre>
+<iframe id="fr" src="../index.html" width="320" height="568"></iframe>
+<script>
+(function () {
+  var out = [], fails = 0;
+  function log(ok, msg) {
+    if (!ok) fails++;
+    out.push((ok ? 'PASS  ' : 'FAIL  ') + msg);
+    document.getElementById('report').innerHTML = out.join('\n');
+  }
+  function wait(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
+
+  function checkScreen(d, name) {
+    var de = d.documentElement;
+    var hOver = de.scrollWidth - de.clientWidth;
+    log(hOver <= 1, name + ': 无横向溢出（溢出 ' + hOver + 'px）');
+  }
+
+  function run() {
+    return (async function () {
+    var fr = document.getElementById('fr');
+    var d = fr.contentDocument;
+    var W = 320, H = 568;
+
+    // 关掉切屏动画：headless 的虚拟时间下动画采样不确定，会让布局测量抖
+    var st = d.createElement('style');
+    st.textContent = '.screen{transition:none !important} .entry{animation:none !important} .attr-fill{transition:none !important}';
+    d.head.appendChild(st);
+
+    checkScreen(d, '开始页');
+    var title = d.querySelector('#screen-start .title');
+    log(title.getBoundingClientRect().width <= W, '开始页标题在屏宽内');
+    var btn = d.getElementById('btnStart');
+    var r = btn.getBoundingClientRect();
+    log(r.width > 100 && r.height >= 40, '主按钮尺寸合理（' + Math.round(r.width) + '×' + Math.round(r.height) + '）');
+    log(r.bottom <= H && r.top >= 0, '主按钮在首屏可见');
+
+    // 天赋页
+    d.getElementById('btnStart').click();
+    await wait(420);
+    checkScreen(d, '天赋页');
+    var cards = d.querySelectorAll('#talentList .card');
+    var c0 = cards[0].getBoundingClientRect();
+    log(c0.width <= W - 20, '天赋卡片不超出屏宽（' + Math.round(c0.width) + 'px）');
+    var fx = cards[0].querySelector('.card-fx');
+    log(!fx || fx.getBoundingClientRect().height < 80, '天赋加成标签没有撑爆卡片');
+    var foot = d.querySelector('#screen-talent .foot').getBoundingClientRect();
+    log(foot.bottom <= H + 1, '底部操作栏在视口内（bottom=' + Math.round(foot.bottom) + ' / 视口 ' + H + '）');
+
+    // 属性页
+    cards[0].click(); cards[1].click(); cards[2].click();
+    d.getElementById('btnTalentNext').click();
+    await wait(420);
+    checkScreen(d, '属性页');
+    var row = d.querySelector('#attrList .attr-row').getBoundingClientRect();
+    log(row.width <= W - 10, '属性行不超出屏宽（' + Math.round(row.width) + 'px）');
+    var nums = d.querySelectorAll('#attrList .attr-num');
+    var nr = nums[0].getBoundingClientRect();
+    log(nr.width >= 34 && nr.height >= 34, '加减按钮足够大（' + Math.round(nr.width) + 'px）');
+
+    // 人生页
+    d.getElementById('btnAttrAuto').click();
+    d.getElementById('btnLive').click();
+    await wait(420);
+    checkScreen(d, '人生页');
+    for (var i = 0; i < 8; i++) d.getElementById('btnNext').click();
+    var entry = d.querySelector('#logList .entry');
+    var er = entry.getBoundingClientRect();
+    log(er.width <= W, '日志条目不超出屏宽（' + Math.round(er.width) + 'px）');
+    var txt = entry.querySelector('.entry-text');
+    log(txt.getBoundingClientRect().height > 0, '日志正文有高度');
+    var lfoot = d.querySelector('#screen-life .foot').getBoundingClientRect();
+    log(lfoot.bottom <= H + 1, '人生页底部栏在视口内（bottom=' + Math.round(lfoot.bottom) + '）');
+
+    // 结算页
+    d.getElementById('btnSkip').click();
+    await wait(900);
+    checkScreen(d, '结算页');
+    var t = d.querySelector('#endWrap .end-title');
+    log(!!t, '结算页标题存在');
+    if (t) {
+      var tr = t.getBoundingClientRect();
+      log(tr.width <= W + 1, '结算标题不溢出（' + Math.round(tr.width) + 'px）');
+      log(tr.height < 120, '结算标题没有异常换行撑高');
+    }
+    var grid = d.querySelector('#endWrap .final-attr');
+    if (grid) {
+      var gr = grid.getBoundingClientRect();
+      log(gr.width <= W, '最终属性网格不溢出（' + Math.round(gr.width) + 'px）');
+      var cells = d.querySelectorAll('#endWrap .final-attr > div');
+      log(cells.length === 4, '四个属性列都在');
+    }
+    var efoot = d.querySelector('#screen-end .foot').getBoundingClientRect();
+    log(efoot.bottom <= H + 1, '结算页底部栏在视口内（bottom=' + Math.round(efoot.bottom) + '）');
+
+    out.push('');
+    out.push(fails === 0 ? '=== 布局全部通过 ===' : '=== ' + fails + ' 项布局问题 ===');
+    document.getElementById('report').innerHTML = out.join('\n');
+    document.title = fails === 0 ? 'ALL-PASS' : 'HAS-FAIL';
+    })();
+  }
+
+  document.getElementById('fr').addEventListener('load', function () {
+    setTimeout(function () {
+      var p;
+      try { p = run(); } catch (e) { log(false, '异常: ' + e.message); }
+      Promise.resolve(p).catch(function (e) { log(false, '异步异常: ' + e.message); });
+    }, 200);
+  });
+})();
+</script>
+</body>
+</html>

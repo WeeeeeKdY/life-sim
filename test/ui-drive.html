@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>ui-drive</title>
+<style>
+  body { background:#111; color:#ddd; font: 13px/1.7 monospace; margin:0; padding:16px; }
+  iframe { position:fixed; left:-2000px; top:0; width:420px; height:900px; border:0; }
+  .pass { color:#7bd88f; } .fail { color:#ff7b7b; font-weight:bold; }
+</style>
+</head>
+<body>
+<pre id="report">running…</pre>
+<iframe id="fr" src="../index.html"></iframe>
+<script>
+(function () {
+  var out = [];
+  var fails = 0;
+  function log(ok, msg) {
+    if (!ok) fails++;
+    out.push((ok ? 'PASS  ' : 'FAIL  ') + msg);
+    document.getElementById('report').innerHTML = out.join('\n');
+  }
+  function wait(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
+
+  function run() {
+    var fr = document.getElementById('fr');
+    var d = fr.contentDocument;
+    var w = fr.contentWindow;
+
+    // 1. 初始
+    log(!!d.getElementById('screen-start').classList.contains('active'), '启动落在开始页');
+    log(/第一次|已经活过/.test(d.getElementById('startStats').textContent), '开始页统计已渲染');
+
+    // 2. 进入天赋页
+    d.getElementById('btnStart').click();
+    var cards = d.querySelectorAll('#talentList .card');
+    log(d.getElementById('screen-talent').classList.contains('active'), '进入天赋页');
+    log(cards.length === 10, '抽出 10 张天赋卡（实际 ' + cards.length + '）');
+    log(d.getElementById('btnTalentNext').disabled === true, '未选满 3 个时下一步禁用');
+
+    // 3. 选 3 个
+    cards[0].click(); cards[1].click(); cards[2].click();
+    log(d.getElementById('talentCount').textContent === '3', '选满计数显示 3');
+    log(d.getElementById('btnTalentNext').disabled === false, '选满 3 个后下一步可用');
+    cards[3].click();
+    log(d.getElementById('talentCount').textContent === '3', '第 4 个不会被选上（上限生效）');
+    cards[2].click();
+    log(d.getElementById('talentCount').textContent === '2', '再点一次可取消选择');
+    cards[2].click();
+    log(d.getElementById('talentCount').textContent === '3', '取消后能重新选回');
+
+    // 4. 属性页
+    d.getElementById('btnTalentNext').click();
+    log(d.getElementById('screen-attr').classList.contains('active'), '进入属性页');
+    log(d.getElementById('pointsLeft').textContent === '20', '初始可用点数 20');
+    log(d.getElementById('btnLive').disabled === true, '点数没分完时不能开始');
+
+    var plus = d.querySelectorAll('#attrList [data-act="plus"]');
+    for (var i = 0; i < 20; i++) plus[i % 4].click();
+    log(d.getElementById('pointsLeft').textContent === '0', '手动加满 20 点后剩余 0');
+    log(d.getElementById('btnLive').disabled === false, '分完点数后可以开始');
+
+    var vals = [].map.call(d.querySelectorAll('#attrList .attr-val'), function (e) { return Number(e.textContent); });
+    log(vals.reduce(function (a, b) { return a + b; }, 0) === 20, '四项属性之和等于 20（' + vals.join('/') + '）');
+    log(vals.every(function (v) { return v >= 0 && v <= 10; }), '单项属性都在 0~10 之间');
+
+    // 5. 人生页
+    d.getElementById('btnLive').click();
+    log(d.getElementById('screen-life').classList.contains('active'), '进入人生页');
+    var logs = d.querySelectorAll('#logList .entry');
+    log(logs.length === 1, '出生记录已写入（' + logs.length + ' 条）');
+    log(/出生/.test(logs[0].textContent), '第一条是出生事件');
+
+    // 6. 逐年推进
+    for (var k = 0; k < 5; k++) d.getElementById('btnNext').click();
+    var logs2 = d.querySelectorAll('#logList .entry');
+    log(logs2.length === 6, '点 5 次下一年，日志累计 6 条（' + logs2.length + '）');
+    log(Number(d.getElementById('ageNum').textContent) === 5, '年龄显示推进到 5 岁');
+
+    // 7. 直接过完
+    d.getElementById('btnSkip').click();
+    return wait(300).then(function () {
+      log(d.getElementById('screen-end').classList.contains('active'), '过完一生后进入结算页');
+      var txt = d.getElementById('endWrap').textContent;
+      log(/评级\s*[SABCDE]/.test(txt), '结算页显示了评级');
+      log(/享年/.test(txt), '结算页显示了享年');
+      log(/最终属性/.test(txt), '结算页显示了最终属性');
+      log(/天赋/.test(txt), '结算页显示了天赋');
+      var finalVs = d.querySelectorAll('#endWrap .final-attr .v');
+      log(finalVs.length === 4, '最终属性四项齐全');
+      var bad = [].some.call(finalVs, function (e) { return !/^\d+$/.test(e.textContent.trim()); });
+      log(!bad, '最终属性都是整数');
+      var lives = Number(w.localStorage.getItem('life.lives'));
+      log(lives >= 1, 'localStorage 记录了已活次数（' + lives + '）');
+
+      // 8. 重开
+      d.getElementById('btnRestart').click();
+      log(d.getElementById('screen-talent').classList.contains('active'), '再来一次回到天赋页');
+      log(d.querySelectorAll('#talentList .card').length === 10, '重开重新抽了 10 张');
+
+      document.title = fails === 0 ? 'ALL-PASS' : 'HAS-FAIL';
+      out.push('');
+      out.push(fails === 0 ? '=== 全部通过 ===' : '=== ' + fails + ' 项失败 ===');
+      document.getElementById('report').innerHTML = out.join('\n');
+    });
+  }
+
+  document.getElementById('fr').addEventListener('load', function () {
+    // 给 iframe 内脚本一点时间完成初始化
+    setTimeout(function () {
+      var p;
+      try { p = run(); } catch (e) {
+        log(false, '运行时异常: ' + e.message);
+        document.title = 'HAS-FAIL';
+      }
+      Promise.resolve(p).catch(function (e) {
+        log(false, '异步异常: ' + e.message);
+        document.title = 'HAS-FAIL';
+      });
+    }, 200);
+  });
+})();
+</script>
+</body>
+</html>

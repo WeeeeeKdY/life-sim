@@ -1,0 +1,9 @@
+{
+  "name": "life-sim",
+  "version": "0.1.0",
+  "description": "人生重开模拟器 —— 纯前端文字人生模拟，零依赖",
+  "private": true,
+  "scripts": {
+    "test": "node test/sim.js"
+  }
+}

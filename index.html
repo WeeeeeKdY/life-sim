@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#12131a">
+<title>人生重开模拟器</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div id="app">
+
+  <!-- ========== 开始 ========== -->
+  <section class="screen active" id="screen-start">
+    <div class="start-wrap">
+      <h1 class="title">人生重开</h1>
+      <p class="subtitle">再活一次，看看这次会怎样</p>
+      <div class="stats-mini" id="startStats"></div>
+      <button class="btn primary big" id="btnStart">开始新的一生</button>
+      <p class="hint">抽 3 个天赋 · 分配 20 点属性 · 逐年走完</p>
+    </div>
+  </section>
+
+  <!-- ========== 天赋 ========== -->
+  <section class="screen" id="screen-talent">
+    <header class="bar">
+      <div class="bar-title">选择天赋</div>
+      <div class="bar-right"><span id="talentCount">0</span>/3</div>
+    </header>
+    <div class="scroll" id="talentList"></div>
+    <footer class="foot">
+      <button class="btn ghost" id="btnReroll">重抽</button>
+      <button class="btn primary" id="btnTalentNext" disabled>下一步</button>
+    </footer>
+  </section>
+
+  <!-- ========== 属性 ========== -->
+  <section class="screen" id="screen-attr">
+    <header class="bar">
+      <div class="bar-title">分配属性</div>
+      <div class="bar-right">剩余 <span id="pointsLeft">20</span></div>
+    </header>
+    <div class="scroll" id="attrList"></div>
+    <footer class="foot">
+      <button class="btn ghost" id="btnAttrAuto">随机分配</button>
+      <button class="btn primary" id="btnLive">开始人生</button>
+    </footer>
+  </section>
+
+  <!-- ========== 人生 ========== -->
+  <section class="screen" id="screen-life">
+    <header class="bar life-bar">
+      <div class="age-box"><span id="ageNum">0</span><small>岁</small></div>
+      <div class="attr-mini" id="attrMini"></div>
+    </header>
+    <div class="scroll log" id="logList"></div>
+    <footer class="foot">
+      <button class="btn ghost" id="btnAuto">自动</button>
+      <button class="btn primary" id="btnNext">下一年</button>
+      <button class="btn ghost" id="btnSkip">过完一生</button>
+    </footer>
+  </section>
+
+  <!-- ========== 结算 ========== -->
+  <section class="screen" id="screen-end">
+    <div class="scroll end-wrap" id="endWrap"></div>
+    <footer class="foot">
+      <button class="btn primary big" id="btnRestart">再来一次</button>
+    </footer>
+  </section>
+
+</div>
+<script src="js/data.js"></script>
+<script src="js/engine.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
