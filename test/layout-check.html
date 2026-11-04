@@ -35,7 +35,8 @@
 
     // 关掉切屏动画：headless 的虚拟时间下动画采样不确定，会让布局测量抖
     var st = d.createElement('style');
-    st.textContent = '.screen{transition:none !important} .entry{animation:none !important} .attr-fill{transition:none !important}';
+    st.textContent = '.screen{transition:none !important} .entry{animation:none !important} ' +
+      '.choices{animation:none !important} .attr-fill{transition:none !important}';
     d.head.appendChild(st);
 
     checkScreen(d, '开始页');
@@ -74,16 +75,59 @@
     d.getElementById('btnLive').click();
     await wait(420);
     checkScreen(d, '人生页');
-    for (var i = 0; i < 8; i++) d.getElementById('btnNext').click();
+
+    // 推到第一个选项为止（待选时不能再点下一年）
+    var choiceBox = d.getElementById('choiceList');
+    var guard = 0;
+    while (!choiceBox.classList.contains('on') && guard < 40) {
+      var nb = d.getElementById('btnNext');
+      if (nb.disabled) break;
+      nb.click();
+      guard++;
+    }
+    await wait(120);
+
     var entry = d.querySelector('#logList .entry');
     var er = entry.getBoundingClientRect();
     log(er.width <= W, '日志条目不超出屏宽（' + Math.round(er.width) + 'px）');
     var txt = entry.querySelector('.entry-text');
     log(txt.getBoundingClientRect().height > 0, '日志正文有高度');
+
+    // 选项面板（新）
+    log(choiceBox.classList.contains('on'), '窄屏下（用了 ' + guard + ' 次下一年）能弹出选项面板');
+    var choices = d.querySelectorAll('#choiceList .choice');
+    if (choices.length) {
+      var cr = choices[0].getBoundingClientRect();
+      log(cr.width <= W - 16, '选项按钮不超出屏宽（' + Math.round(cr.width) + 'px）');
+      log(cr.height >= 38, '选项按钮可点击高度足够（' + Math.round(cr.height) + 'px）');
+
+      var boxR = choiceBox.getBoundingClientRect();
+      var lfoot0 = d.querySelector('#screen-life .foot').getBoundingClientRect();
+      log(boxR.bottom <= lfoot0.top + 1,
+        '选项面板没有盖住底部栏（面板底 ' + Math.round(boxR.bottom) +
+        ' / 底部栏顶 ' + Math.round(lfoot0.top) + '）');
+      log(lfoot0.bottom <= H + 1, '待选时底部栏仍在视口内（bottom=' + Math.round(lfoot0.bottom) + '）');
+
+      var logBox = d.getElementById('logList').getBoundingClientRect();
+      log(logBox.height > 60, '选项面板出现后日志区仍可读（' + Math.round(logBox.height) + 'px）');
+
+      // 选一个，让面板收起
+      choices[0].click();
+      await wait(120);
+      log(!choiceBox.classList.contains('on'), '选完后面板收起');
+      var relog = d.getElementById('logList').getBoundingClientRect();
+      log(relog.height > 120, '面板收起后日志区恢复高度（' + Math.round(relog.height) + 'px）');
+    }
+
     var lfoot = d.querySelector('#screen-life .foot').getBoundingClientRect();
     log(lfoot.bottom <= H + 1, '人生页底部栏在视口内（bottom=' + Math.round(lfoot.bottom) + '）');
 
     // 结算页
+    // 可能正好卡在待选，先选一个
+    if (choiceBox.classList.contains('on')) {
+      d.querySelector('#choiceList .choice').click();
+      await wait(120);
+    }
     d.getElementById('btnSkip').click();
     await wait(900);
     checkScreen(d, '结算页');
